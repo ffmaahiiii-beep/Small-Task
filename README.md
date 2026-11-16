@@ -42,3 +42,4 @@ This starter intentionally does not implement live authentication screens, admin
 - `app/globals.css` — responsive styling
 - `lib/supabase.ts` — Supabase client placeholder
 - `supabase/schema.sql` — initial database schema and RLS policies
+Small Task Project
