@@ -1,17 +1,77 @@
 
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+
+type Task = {
+  id: string;
+  title: string;
+  description: string;
+  instructions: string;
+  category: string;
+  reward_usd: number;
+};
 
 export default function Home() {
   const [mode, setMode] = useState<"login" | "signup">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [userId, setUserId] = useState("");
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [balance, setBalance] = useState(0);
+  const [proof, setProof] = useState("");
+  const [selectedTask, setSelectedTask] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function loadDashboard(id: string) {
+    if (!supabase) return;
+
+    const { data: taskData } = await supabase
+      .from("tasks")
+      .select("id,title,description,instructions,category,reward_usd")
+      .eq("status", "published")
+      .order("created_at", { ascending: false });
+
+    const { data: walletData } = await supabase
+      .from("wallets")
+      .select("balance_usd")
+      .eq("user_id", id)
+      .maybeSingle();
+
+    setTasks(taskData || []);
+    setBalance(Number(walletData?.balance_usd || 0));
+  }
+
+  useEffect(() => {
+    if (!supabase) return;
+
+    let active = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (active && data.session) {
+        setUserId(data.session.user.id);
+        loadDashboard(data.session.user.id);
+      }
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (active) {
+          setUserId(session?.user.id || "");
+          if (session?.user.id) loadDashboard(session.user.id);
+        }
+      }
+    );
+
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  async function handleAuth(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMessage("");
 
@@ -29,105 +89,170 @@ export default function Home() {
           password,
         });
         if (error) throw error;
-
-        setMessage(
-          "Registration successful! Email check করে confirmation link-এ চাপ দিন।"
-        );
+        setMessage("Registration হয়েছে। Email confirmation করুন।");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
-
-        setMessage("Login successful! আপনার account তৈরি হয়েছে।");
+        setMessage("Login successful!");
       }
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "Something went wrong."
-      );
+      setMessage(error instanceof Error ? error.message : "সমস্যা হয়েছে।");
     } finally {
       setLoading(false);
     }
   }
 
-  return (
-    <main className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-5">
-      <div className="w-full max-w-md rounded-2xl bg-slate-900 p-7 shadow-xl">
-        <h1 className="text-3xl font-bold text-center text-emerald-400">
-          Small Task
-        </h1>
-        <p className="text-center text-slate-400 mt-2">
-          Complete tasks and earn rewards
-        </p>
+  async function submitTask() {
+    if (!supabase || !userId || !selectedTask || !proof.trim()) {
+      setMessage("Task নির্বাচন করে Proof লিখুন।");
+      return;
+    }
 
-        <div className="flex gap-2 mt-8">
-          <button
-            type="button"
-            onClick={() => {
-              setMode("signup");
-              setMessage("");
-            }}
-            className={`flex-1 rounded-lg p-3 ${mode === "signup" ? "bg-emerald-500 text-black" : "bg-slate-800"}`}
-          >
-            Register
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode("login");
-              setMessage("");
-            }}
-            className={`flex-1 rounded-lg p-3 ${mode === "login" ? "bg-emerald-500 text-black" : "bg-slate-800"}`}
-          >
-            Login
-          </button>
-        </div>
+    setLoading(true);
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div>
-            <label className="block mb-2">Email address</label>
+    const { error } = await supabase.from("submissions").insert({
+      task_id: selectedTask,
+      user_id: userId,
+      proof_text: proof.trim(),
+      status: "pending",
+    });
+
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage("আপনার কাজ জমা হয়েছে। Admin review করবেন।");
+      setProof("");
+      setSelectedTask("");
+    }
+
+    setLoading(false);
+  }
+
+  async function logout() {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setUserId("");
+  }
+
+  if (!userId) {
+    return (
+      <main className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-5">
+        <div className="w-full max-w-md rounded-2xl bg-slate-900 p-7">
+          <h1 className="text-3xl font-bold text-center text-emerald-400">
+            Small Task
+          </h1>
+          <p className="text-center text-slate-400 mt-2">
+            Complete tasks and earn rewards
+          </p>
+
+          <div className="flex gap-2 mt-8">
+            <button onClick={() => setMode("signup")} className="flex-1 rounded-lg bg-emerald-500 p-3 text-black">
+              Register
+            </button>
+            <button onClick={() => setMode("login")} className="flex-1 rounded-lg bg-slate-700 p-3">
+              Login
+            </button>
+          </div>
+
+          <form onSubmit={handleAuth} className="mt-6 space-y-4">
             <input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              className="w-full rounded-lg bg-slate-800 p-3 outline-none"
+              placeholder="Email address"
+              className="w-full rounded-lg bg-slate-800 p-3"
             />
-          </div>
-
-          <div>
-            <label className="block mb-2">Password</label>
             <input
               type="password"
               required
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 6 characters"
-              className="w-full rounded-lg bg-slate-800 p-3 outline-none"
+              placeholder="Password"
+              className="w-full rounded-lg bg-slate-800 p-3"
             />
-          </div>
+            <button disabled={loading} className="w-full rounded-lg bg-emerald-500 p-3 font-bold text-black">
+              {loading ? "Please wait..." : mode === "signup" ? "Create Account" : "Login"}
+            </button>
+          </form>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-emerald-500 p-3 font-bold text-black disabled:opacity-50"
-          >
-            {loading ? "Please wait..." : mode === "signup" ? "Create Account" : "Login"}
+          {message && <p className="mt-4 break-words text-center text-sm">{message}</p>}
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-950 text-white p-5">
+      <div className="mx-auto max-w-3xl">
+        <header className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-emerald-400">Small Task</h1>
+          <button onClick={logout} className="rounded-lg bg-red-600 px-4 py-2">
+            Logout
           </button>
-        </form>
+        </header>
+
+        <section className="mt-6 rounded-2xl bg-slate-900 p-6">
+          <p className="text-slate-400">Wallet Balance</p>
+          <h2 className="mt-2 text-4xl font-bold text-emerald-400">
+            ${balance.toFixed(2)}
+          </h2>
+          <p className="mt-2 text-sm text-slate-400">
+            Minimum withdrawal: $0.50
+          </p>
+        </section>
+
+        <h2 className="mt-8 text-2xl font-bold">Available Tasks</h2>
+
+        {tasks.length === 0 && (
+          <p className="mt-4 text-slate-400">এখনো কোনো Published Task নেই।</p>
+        )}
+
+        {tasks.map((task) => (
+          <article key={task.id} className="mt-4 rounded-xl bg-slate-900 p-5">
+            <h3 className="text-xl font-bold">{task.title}</h3>
+            <p className="mt-2 text-slate-300">{task.description}</p>
+            <p className="mt-2 text-sm text-slate-400">{task.instructions}</p>
+            <p className="mt-3 font-bold text-emerald-400">
+              Reward: ${Number(task.reward_usd).toFixed(2)}
+            </p>
+            <button
+              onClick={() => setSelectedTask(task.id)}
+              className="mt-3 rounded-lg bg-emerald-500 px-4 py-2 font-bold text-black"
+            >
+              Submit this task
+            </button>
+          </article>
+        ))}
+
+        {selectedTask && (
+          <section className="mt-6 rounded-xl bg-slate-900 p-5">
+            <h2 className="text-xl font-bold">Submit Your Proof</h2>
+            <textarea
+              value={proof}
+              onChange={(e) => setProof(e.target.value)}
+              placeholder="আপনার কাজের প্রমাণ লিখুন"
+              className="mt-4 min-h-28 w-full rounded-lg bg-slate-800 p-3"
+            />
+            <button
+              onClick={submitTask}
+              disabled={loading}
+              className="mt-3 rounded-lg bg-emerald-500 px-5 py-3 font-bold text-black"
+            >
+              Submit Proof
+            </button>
+          </section>
+        )}
 
         {message && (
-          <p className="mt-5 rounded-lg bg-slate-800 p-3 text-center text-sm break-words">
+          <p className="mt-5 break-words rounded-lg bg-slate-800 p-3 text-center">
             {message}
           </p>
         )}
-
-        <p className="mt-6 text-center text-xs text-slate-500">
-          Small Task · USD Rewards
-        </p>
       </div>
     </main>
   );
