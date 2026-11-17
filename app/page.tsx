@@ -21,6 +21,9 @@ export default function Home() {
   const [userId, setUserId] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [balance, setBalance] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState("binance");
+const [paymentAccount, setPaymentAccount] = useState("");
+const [withdrawAmount, setWithdrawAmount] = useState("0.50");
   const [proof, setProof] = useState("");
   const [selectedTask, setSelectedTask] = useState("");
   const [loading, setLoading] = useState(false);
@@ -130,7 +133,46 @@ export default function Home() {
 
     setLoading(false);
   }
+async function submitWithdrawal() {
+  if (!supabase || !userId) return;
 
+  const amount = Number(withdrawAmount);
+
+  if (!Number.isFinite(amount) || amount < 0.50) {
+    setMessage("Minimum withdrawal is $0.50");
+    return;
+  }
+
+  if (amount > balance) {
+    setMessage("Insufficient wallet balance");
+    return;
+  }
+
+  if (!paymentAccount.trim()) {
+    setMessage("Payment account দিন");
+    return;
+  }
+
+  setLoading(true);
+
+  const { error } = await supabase.from("withdrawals").insert({
+    user_id: userId,
+    amount_usd: amount,
+    payment_method: paymentMethod,
+    payment_account: paymentAccount.trim(),
+    status: "pending",
+  });
+
+  if (error) {
+    setMessage(error.message);
+  } else {
+    setMessage("Withdrawal request জমা হয়েছে!");
+    setPaymentAccount("");
+    setWithdrawAmount("0.50");
+  }
+
+  setLoading(false);
+}
   async function logout() {
     if (!supabase) return;
     await supabase.auth.signOut();
