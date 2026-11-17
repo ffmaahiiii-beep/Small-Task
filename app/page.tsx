@@ -1,59 +1,134 @@
-const tasks = [
-  { title: "Visit a website and answer a question", category: "Website", reward: "0.10", time: "2 min", slots: 42 },
-  { title: "Watch a short video and share feedback", category: "Video", reward: "0.25", time: "5 min", slots: 18 },
-  { title: "Complete a short product survey", category: "Survey", reward: "0.50", time: "8 min", slots: 25 },
-  { title: "Test a mobile app and submit feedback", category: "App testing", reward: "1.20", time: "15 min", slots: 9 }
-];
+
+"use client";
+
+import { useState, type FormEvent } from "react";
+import { supabase } from "../lib/supabase";
 
 export default function Home() {
+  const [mode, setMode] = useState<"login" | "signup">("signup");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setMessage("");
+
+    if (!supabase) {
+      setMessage("Supabase connection পাওয়া যায়নি।");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      if (mode === "signup") {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (error) throw error;
+
+        setMessage(
+          "Registration successful! Email check করে confirmation link-এ চাপ দিন।"
+        );
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+
+        setMessage("Login successful! আপনার account তৈরি হয়েছে।");
+      }
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Something went wrong."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <main className="shell">
-      <header className="topbar">
-        <a className="brand" href="#"><span className="brandMark">S</span> Small Task</a>
-        <nav><a href="#tasks">Browse tasks</a><a href="#how">How it works</a><a className="login" href="#account">Log in</a></nav>
-      </header>
+    <main className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-5">
+      <div className="w-full max-w-md rounded-2xl bg-slate-900 p-7 shadow-xl">
+        <h1 className="text-3xl font-bold text-center text-emerald-400">
+          Small Task
+        </h1>
+        <p className="text-center text-slate-400 mt-2">
+          Complete tasks and earn rewards
+        </p>
 
-      <section className="hero">
-        <div className="heroCopy">
-          <span className="eyebrow">SMALL TASKS. REAL REWARDS.</span>
-          <h1>Turn your free time into <em>earnings.</em></h1>
-          <p>Find simple online tasks, submit your work, and earn rewards when your submission is approved.</p>
-          <div className="heroActions"><a className="primary" href="#tasks">Explore tasks <span>↗</span></a><a className="secondary" href="#how">How it works</a></div>
-          <div className="trust"><span>✓</span> Clear rewards · Reviewed submissions · USD wallet</div>
+        <div className="flex gap-2 mt-8">
+          <button
+            type="button"
+            onClick={() => {
+              setMode("signup");
+              setMessage("");
+            }}
+            className={`flex-1 rounded-lg p-3 ${mode === "signup" ? "bg-emerald-500 text-black" : "bg-slate-800"}`}
+          >
+            Register
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("login");
+              setMessage("");
+            }}
+            className={`flex-1 rounded-lg p-3 ${mode === "login" ? "bg-emerald-500 text-black" : "bg-slate-800"}`}
+          >
+            Login
+          </button>
         </div>
-        <div className="walletCard">
-          <div className="walletTop"><span>YOUR EARNING WALLET</span><span className="liveDot">● DEMO</span></div>
-          <div className="balance">$12.80</div>
-          <div className="balanceCaption">Sample balance · Preview only</div>
-          <div className="walletLine"></div>
-          <div className="walletStats"><div><small>Tasks completed</small><b>24</b></div><div><small>Pending review</small><b>03</b></div></div>
-          <div className="miniChart"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-        </div>
-        <div className="heroOrb orbOne"></div><div className="heroOrb orbTwo"></div>
-      </section>
 
-      <section className="stats">
-        <div><b>Flexible</b><span>Work on your schedule</span></div><div><b>Many categories</b><span>Different kinds of tasks</span></div><div><b>USD rewards</b><span>Rewards shown in dollars</span></div><div><b>Reviewed work</b><span>Admin approval process</span></div>
-      </section>
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <div>
+            <label className="block mb-2">Email address</label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              className="w-full rounded-lg bg-slate-800 p-3 outline-none"
+            />
+          </div>
 
-      <section className="section" id="tasks">
-        <div className="sectionHead"><div><span className="eyebrow">GET STARTED</span><h2>Explore available tasks</h2><p>Choose a task that matches your time and skills.</p></div><a className="textLink" href="#account">View all tasks ↗</a></div>
-        <div className="taskGrid">
-          {tasks.map((task, i) => <article className="taskCard" key={task.title}>
-            <div className="taskIcon">{["↗","▶","▤","⌘"][i]}</div><div className="taskCategory">{task.category}</div>
-            <h3>{task.title}</h3><div className="taskMeta"><span>◷ {task.time}</span><span>{task.slots} slots</span></div>
-            <div className="taskBottom"><div><small>REWARD</small><b>${task.reward}</b></div><a href="#account">View task ↗</a></div>
-          </article>)}
-        </div>
-        <p className="demoNote">Preview content only. Real tasks, balances and withdrawals will load after Supabase setup.</p>
-      </section>
+          <div>
+            <label className="block mb-2">Password</label>
+            <input
+              type="password"
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 6 characters"
+              className="w-full rounded-lg bg-slate-800 p-3 outline-none"
+            />
+          </div>
 
-      <section className="how" id="how"><span className="eyebrow">SIMPLE PROCESS</span><h2>How Small Task works</h2>
-        <div className="steps"><div><span>01</span><h3>Create an account</h3><p>Register securely and access your task dashboard.</p></div><div><span>02</span><h3>Complete a task</h3><p>Follow the instructions and submit the required proof.</p></div><div><span>03</span><h3>Get approved</h3><p>Admin reviews your submission. Approved rewards enter your wallet.</p></div><div><span>04</span><h3>Request payout</h3><p>Request a withdrawal to your Binance Pay ID once eligible.</p></div></div>
-      </section>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-lg bg-emerald-500 p-3 font-bold text-black disabled:opacity-50"
+          >
+            {loading ? "Please wait..." : mode === "signup" ? "Create Account" : "Login"}
+          </button>
+        </form>
 
-      <section className="cta" id="account"><div><span className="eyebrow">YOUR NEXT STEP</span><h2>Ready to get started?</h2><p>Account registration and live task features are the next build stage.</p></div><a className="primary" href="mailto:admin@example.com?subject=Small%20Task%20account%20setup">Contact admin ↗</a></section>
-      <footer><a className="brand" href="#"><span className="brandMark">S</span> Small Task</a><span>© 2026 Small Task. Demo starter interface.</span><span>USD · Binance Pay ID withdrawals</span></footer>
+        {message && (
+          <p className="mt-5 rounded-lg bg-slate-800 p-3 text-center text-sm break-words">
+            {message}
+          </p>
+        )}
+
+        <p className="mt-6 text-center text-xs text-slate-500">
+          Small Task · USD Rewards
+        </p>
+      </div>
     </main>
   );
 }
