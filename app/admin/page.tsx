@@ -116,28 +116,50 @@ export default function AdminPage() {
     }
   }
 
-  async function reviewTask(id: string, status: "approved" | "rejected") {
-    if (!supabase) return;
+  
+async function reviewTask(id: string, status: "approved" | "rejected") {
+  if (!supabase) return;
 
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) return;
+  const { data } = await supabase.auth.getUser();
 
-    const { error } = await supabase
+  if (!data.user) {
+    setMessage("আবার Login করুন।");
+    return;
+  }
+
+  let error;
+
+  if (status === "approved") {
+    const result = await supabase.rpc("approve_task_submission", {
+      p_submission_id: id,
+    });
+    error = result.error;
+  } else {
+    const result = await supabase
       .from("submissions")
       .update({
-        status,
+        status: "rejected",
         reviewed_by: data.user.id,
         reviewed_at: new Date().toISOString(),
       })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("status", "pending");
 
-    if (error) {
-      setMessage(error.message);
-    } else {
-      setMessage("Submission review হয়েছে।");
-      await loadSubmissions();
-    }
+    error = result.error;
   }
+
+  if (error) {
+    setMessage(error.message);
+  } else {
+    setMessage(
+      status === "approved"
+        ? "Approved! Reward Wallet-এ যোগ হয়েছে।"
+        : "Submission rejected হয়েছে।"
+    );
+    await loadSubmissions();
+  }
+}
+
 
   if (checking) {
     return <main className="min-h-screen bg-slate-950 p-6 text-white">Checking Admin...</main>;
