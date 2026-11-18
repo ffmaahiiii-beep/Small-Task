@@ -21,7 +21,7 @@ export default function Home() {
   const [userId, setUserId] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [balance, setBalance] = useState(0);
-  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofFiles, setProofFiles] = useState<File[]>([]);
   const [paymentMethod, setPaymentMethod] = useState("binance");
 const [paymentAccount, setPaymentAccount] = useState("");
 const [withdrawAmount, setWithdrawAmount] = useState("0.50");
@@ -116,27 +116,33 @@ const [withdrawAmount, setWithdrawAmount] = useState("0.50");
     }
 
     setLoading(true);
-let uploadedPath: string | null = null;
+let uploadedPaths: string[] = [];
 
-if (proofFile) {
-  if (!["image/jpeg", "image/png", "image/webp"].includes(proofFile.type)) {
+if (proofFiles.length > 5) {
+  setMessage("সর্বোচ্চ ৫টি Screenshot দিতে পারবেন");
+  setLoading(false);
+  return;
+}
+
+for (const file of proofFiles) {
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
     setMessage("শুধু JPG, PNG অথবা WEBP ছবি দিন");
     setLoading(false);
     return;
   }
 
-  if (proofFile.size > 5 * 1024 * 1024) {
-    setMessage("ছবির সাইজ 10 MB-এর কম হতে হবে");
+  if (file.size > 5 * 1024 * 1024) {
+    setMessage("প্রতিটি ছবির সাইজ 5 MB-এর কম হতে হবে");
     setLoading(false);
     return;
   }
 
-  const path = `${userId}/${crypto.randomUUID()}.${proofFile.name.split(".").pop()}`;
+  const path = `${userId}/${crypto.randomUUID()}.${file.name.split(".").pop()}`;
 
   const { error: uploadError } = await supabase.storage
     .from("task-proofs")
-    .upload(path, proofFile, {
-      contentType: proofFile.type,
+    .upload(path, file, {
+      contentType: file.type,
       upsert: false,
     });
 
@@ -146,13 +152,13 @@ if (proofFile) {
     return;
   }
 
-  uploadedPath = path;
+  uploadedPaths.push(path);
 }
     const { error } = await supabase.from("submissions").insert({
       task_id: selectedTask,
       user_id: userId,
       proof_text: proof.trim(),
-      proof_url: uploadedPath,
+      proof_urls: uploadedPaths,
       status: "pending",
     });
 
@@ -330,7 +336,8 @@ async function submitWithdrawal() {
   <input
     type="file"
     accept="image/png,image/jpeg,image/webp"
-    onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+    multiple
+onChange={(e) => setProofFiles(Array.from(e.target.files || []))}
     className="w-full rounded-lg bg-slate-800 p-3 text-sm"
   />
   <p className="mt-1 text-xs text-slate-400">
