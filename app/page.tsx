@@ -274,6 +274,16 @@ async function submitWithdrawal() {
         <section className="mt-6 rounded-2xl bg-slate-900 p-6">
           <p className="text-slate-400">Wallet Balance</p>
           <h2 className="mt-2 text-4xl font-bold text-emerald-400">
+            {selectedTask.instructions && (
+  <div className="mt-4 rounded-lg bg-blue-900/30 p-4">
+    <h3 className="font-bold text-blue-300">
+      Screenshot Instructions
+    </h3>
+    <p className="mt-2 whitespace-pre-line text-sm">
+      {selectedTask.instructions}
+    </p>
+  </div>
+)}
             ${balance.toFixed(2)}
           </h2>
           <p className="mt-2 text-sm text-slate-400">
