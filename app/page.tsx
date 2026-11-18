@@ -313,6 +313,20 @@ async function submitWithdrawal() {
               placeholder="আপনার কাজের প্রমাণ লিখুন"
               className="mt-4 min-h-28 w-full rounded-lg bg-slate-800 p-3"
             />
+            <div className="mt-3">
+  <label className="mb-2 block text-sm text-slate-300">
+    Screenshot দিন (ঐচ্ছিক)
+  </label>
+  <input
+    type="file"
+    accept="image/png,image/jpeg,image/webp"
+    onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+    className="w-full rounded-lg bg-slate-800 p-3 text-sm"
+  />
+  <p className="mt-1 text-xs text-slate-400">
+    JPG, PNG অথবা WEBP — সর্বোচ্চ 5 MB
+  </p>
+</div>
             <button
               onClick={submitTask}
               disabled={loading}
