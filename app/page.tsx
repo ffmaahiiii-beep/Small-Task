@@ -21,6 +21,7 @@ export default function Home() {
   const [userId, setUserId] = useState("");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [balance, setBalance] = useState(0);
+  const [proofFile, setProofFile] = useState<File | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("binance");
 const [paymentAccount, setPaymentAccount] = useState("");
 const [withdrawAmount, setWithdrawAmount] = useState("0.50");
