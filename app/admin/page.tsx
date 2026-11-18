@@ -186,7 +186,13 @@ async function reviewTask(id: string, status: "approved" | "rejected") {
 
             <textarea required value={description} onChange={(e) => setDescription(e.target.value)}
               placeholder="Task description" className="w-full rounded-lg bg-slate-800 p-3" />
-
+<textarea
+  required
+  value={instructions}
+  onChange={(e) => setInstructions(e.target.value)}
+  placeholder="কোন কোন Screenshot জমা দিতে হবে? যেমন: ১. কাজ শুরুর ছবি ২. কাজ শেষের ছবি"
+  className="w-full rounded-lg bg-slate-800 p-3"
+/>
             <textarea required value={instructions} onChange={(e) => setInstructions(e.target.value)}
               placeholder="Task instructions" className="w-full rounded-lg bg-slate-800 p-3" />
 
