@@ -116,11 +116,43 @@ const [withdrawAmount, setWithdrawAmount] = useState("0.50");
     }
 
     setLoading(true);
+let uploadedPath: string | null = null;
 
+if (proofFile) {
+  if (!["image/jpeg", "image/png", "image/webp"].includes(proofFile.type)) {
+    setMessage("শুধু JPG, PNG অথবা WEBP ছবি দিন");
+    setLoading(false);
+    return;
+  }
+
+  if (proofFile.size > 5 * 1024 * 1024) {
+    setMessage("ছবির সাইজ 10 MB-এর কম হতে হবে");
+    setLoading(false);
+    return;
+  }
+
+  const path = `${userId}/${crypto.randomUUID()}.${proofFile.name.split(".").pop()}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("task-proofs")
+    .upload(path, proofFile, {
+      contentType: proofFile.type,
+      upsert: false,
+    });
+
+  if (uploadError) {
+    setMessage(uploadError.message);
+    setLoading(false);
+    return;
+  }
+
+  uploadedPath = path;
+}
     const { error } = await supabase.from("submissions").insert({
       task_id: selectedTask,
       user_id: userId,
       proof_text: proof.trim(),
+      proof_url: uploadedPath,
       status: "pending",
     });
 
